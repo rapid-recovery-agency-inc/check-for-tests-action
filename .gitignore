@@ -1,0 +1,33 @@
+# Node modules
+node_modules/
+
+# Build outputs
+lib/
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+
+# Distribution files (committed separately)
+# dist/ is intentionally tracked for GitHub Actions
+config.bat

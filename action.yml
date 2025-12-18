@@ -1,0 +1,46 @@
+name: 'Check for Tests'
+description: 'Checks if a Pull Request includes test files and adds a comment and label if no tests are found'
+author: 'Rapid Recovery Agency Inc'
+branding:
+  icon: 'check-circle'
+  color: 'yellow'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+  test-patterns:
+    description: 'Comma-separated patterns to identify test files (e.g., "**/*.test.ts,**/*.spec.ts,**/test_*.py")'
+    required: false
+    default: '**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.spec.ts,**/*.spec.js,**/*.spec.tsx,**/*.spec.jsx,**/test_*.py,**/*_test.py,**/*.test.py,**/tests/**,**/__tests__/**'
+  label-name:
+    description: 'Name of the label to add when no tests are found'
+    required: false
+    default: 'no-tests'
+  label-color:
+    description: 'Color of the label (hex code without #)'
+    required: false
+    default: 'fbca04'
+  comment-message:
+    description: 'Custom message to add in the comment when no tests are found'
+    required: false
+    default: '⚠️ **No tests detected** in this Pull Request. Please consider adding tests to ensure code quality and maintainability.'
+  skip-label:
+    description: 'If true, skip adding/removing the label'
+    required: false
+    default: 'false'
+  skip-comment:
+    description: 'If true, skip adding the comment'
+    required: false
+    default: 'false'
+
+outputs:
+  has-tests:
+    description: 'Boolean indicating whether tests were found in the PR'
+  test-files-count:
+    description: 'Number of test files found in the PR'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
