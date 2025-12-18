@@ -1,0 +1,175 @@
+name: 'Check Tests Coverage'
+description: 'Verifies that PRs modifying code files include corresponding test files'
+
+branding:
+  icon: 'alert-triangle'
+  color: 'yellow'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get changed JS/TS files
+      id: changed-js-files
+      uses: tj-actions/changed-files@v45
+      with:
+        files: |
+          **/*.ts
+          **/*.tsx
+          **/*.js
+          **/*.jsx
+        files_ignore: |
+          **/*.test.ts
+          **/*-test.ts
+          **/*.test.tsx
+          **/*-test.tsx
+          **/*.test.js
+          **/*-test.js
+          **/*.test.jsx
+          **/*-test.jsx
+          **/*.spec.ts
+          **/*.spec.tsx
+          **/*.spec.js
+          **/*.spec.jsx
+          **/*.mock.ts
+          **/*.mock.js
+          **/*.fixture.ts
+          **/*.fixture.js
+          **/e2e/**
+          **/__tests__/**
+          **/node_modules/**
+          **/dist/**
+          **/build/**
+          **/*.config.ts
+          **/*.config.js
+          **/migrations/**
+          **/scripts/**
+          **/*.d.ts
+          **/.github/**
+
+    - name: Get changed JS/TS test files
+      id: changed-js-tests
+      uses: tj-actions/changed-files@v45
+      with:
+        files: |
+          **/*.test.ts
+          **/*-test.ts
+          **/*.test.tsx
+          **/*-test.tsx
+          **/*.test.js
+          **/*-test.js
+          **/*.test.jsx
+          **/*-test.jsx
+          **/*.spec.ts
+          **/*-spec.ts
+          **/*.spec.tsx
+          **/*-spec.tsx
+          **/*.spec.js
+          **/*-spec.js
+          **/*.spec.jsx
+          **/*-spec.jsx
+          **/e2e/**/*.ts
+          **/e2e/**/*.js
+          **/__tests__/**/*.ts
+          **/__tests__/**/*.js
+
+    - name: Get changed Python files
+      id: changed-py-files
+      uses: tj-actions/changed-files@v45
+      with:
+        files: |
+          **/*.py
+        files_ignore: |
+          **/test_*.py
+          **/*_test.py
+          **/tests/**
+          **/e2e/**
+          **/__pycache__/**
+          **/*.pyc
+
+    - name: Get changed Python test files
+      id: changed-py-tests
+      uses: tj-actions/changed-files@v45
+      with:
+        files: |
+          **/test_*.py
+          **/*_test.py
+          **/tests/**/*.py
+          **/e2e/**/*.py
+
+    - name: Check and comment on missing tests
+      if: |
+        (steps.changed-js-files.outputs.any_changed == 'true' && steps.changed-js-tests.outputs.any_changed == 'false') ||
+        (steps.changed-py-files.outputs.any_changed == 'true' && steps.changed-py-tests.outputs.any_changed == 'false')
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const jsChanged = '${{ steps.changed-js-files.outputs.any_changed }}' === 'true';
+          const jsTests = '${{ steps.changed-js-tests.outputs.any_changed }}' === 'true';
+          const pyChanged = '${{ steps.changed-py-files.outputs.any_changed }}' === 'true';
+          const pyTests = '${{ steps.changed-py-tests.outputs.any_changed }}' === 'true';
+
+          let languages = [];
+          let suggestions = [];
+          let changedFilesList = '';
+
+          if (jsChanged && !jsTests) {
+            languages.push('JavaScript/TypeScript');
+            suggestions.push('- Unit tests (`*.test.ts`, `*.spec.ts`)');
+            suggestions.push('- E2E tests (in `/e2e` directory)');
+            suggestions.push('- Tests in `/__tests__/` directory');
+            
+            const jsFiles = `${{ steps.changed-js-files.outputs.all_changed_files }}`.trim();
+            if (jsFiles) {
+              changedFilesList += '\n**JavaScript/TypeScript files:**\n```\n' + 
+                jsFiles.split(/\s+/).join('\n') + '\n```\n';
+            }
+          }
+
+          if (pyChanged && !pyTests) {
+            languages.push('Python');
+            suggestions.push('- Unit tests (`test_*.py` or in `/tests` directory)');
+            suggestions.push('- E2E tests (in `/e2e` directory)');
+            
+            const pyFiles = `${{ steps.changed-py-files.outputs.all_changed_files }}`.trim();
+            if (pyFiles) {
+              changedFilesList += '\n**Python files:**\n```\n' + 
+                pyFiles.split(/\s+/).join('\n') + '\n```\n';
+            }
+          }
+
+          const warningText = '**Warning: No tests detected in this PR**';
+          const languageText = languages.length > 0 
+            ? `\n\nThis PR modifies **${languages.join(' and ')}** code files but doesn't include any test files.`
+            : '';
+
+          const comment = `${warningText}${languageText}
+
+          ${changedFilesList}
+
+          **Please consider adding:**
+          ${[...new Set(suggestions)].join('\n')}
+
+          If tests aren't needed for this change, please explain why in the Pull Request description.`;
+
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Add no-tests label
+      if: |
+        (steps.changed-js-files.outputs.any_changed == 'true' && steps.changed-js-tests.outputs.any_changed == 'false') ||
+        (steps.changed-py-files.outputs.any_changed == 'true' && steps.changed-py-tests.outputs.any_changed == 'false')
+      uses: actions/github-script@v7
+      continue-on-error: true
+      with:
+        script: |
+          await github.rest.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['no-tests']
+          });
+      shell: bash
