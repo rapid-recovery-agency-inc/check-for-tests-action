@@ -8,7 +8,21 @@ branding:
 runs:
   using: 'composite'
   steps:
+    - name: Check for existing no-tests label
+      id: check-label
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo
+          });
+          const hasLabel = labels.some(label => label.name === 'no-tests');
+          core.setOutput('has_no_tests_label', hasLabel.toString());
+
     - name: Get changed JS/TS files
+      if: steps.check-label.outputs.has_no_tests_label == 'false'
       id: changed-js-files
       uses: tj-actions/changed-files@v45
       with:
@@ -47,6 +61,7 @@ runs:
           **/.github/**
 
     - name: Get changed JS/TS test files
+      if: steps.check-label.outputs.has_no_tests_label == 'false'
       id: changed-js-tests
       uses: tj-actions/changed-files@v45
       with:
@@ -73,6 +88,7 @@ runs:
           **/__tests__/**/*.js
 
     - name: Get changed Python files
+      if: steps.check-label.outputs.has_no_tests_label == 'false'
       id: changed-py-files
       uses: tj-actions/changed-files@v45
       with:
@@ -87,6 +103,7 @@ runs:
           **/*.pyc
 
     - name: Get changed Python test files
+      if: steps.check-label.outputs.has_no_tests_label == 'false'
       id: changed-py-tests
       uses: tj-actions/changed-files@v45
       with:
@@ -98,8 +115,9 @@ runs:
 
     - name: Check and comment on missing tests
       if: |
-        (steps.changed-js-files.outputs.any_changed == 'true' && steps.changed-js-tests.outputs.any_changed == 'false') ||
-        (steps.changed-py-files.outputs.any_changed == 'true' && steps.changed-py-tests.outputs.any_changed == 'false')
+        steps.check-label.outputs.has_no_tests_label == 'false' &&
+        ((steps.changed-js-files.outputs.any_changed == 'true' && steps.changed-js-tests.outputs.any_changed == 'false') ||
+        (steps.changed-py-files.outputs.any_changed == 'true' && steps.changed-py-tests.outputs.any_changed == 'false'))
       uses: actions/github-script@v7
       with:
         script: |
